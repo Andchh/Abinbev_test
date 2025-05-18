@@ -424,5 +424,6 @@ networks:
 volumes:
   postgres-db-volume:
   spark-app-scripts:
+      name: brewer_spark-app-scripts
   datalake-volume:
-
+      name: brewer_datalake-volume
