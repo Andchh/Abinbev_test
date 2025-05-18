@@ -1,0 +1,25 @@
+# Airflow logs
+logs/
+*.log
+
+# Ambiente virtual
+venv/
+env/
+
+# Arquivos de cache Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos temporários do sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de ambiente (podem conter credenciais)
+# Remova esta linha se quiser versionar o .env
+# .env
+
+# Arquivos gerados pelo Airflow
+airflow.db
+airflow.cfg
+webserver_config.py
