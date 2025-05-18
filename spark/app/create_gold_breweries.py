@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, count, lit, current_timestamp
+from pyspark.sql import functions as F
 import os
 import logging
 
@@ -24,7 +24,9 @@ def run_gold_transformation():
              .config("spark.sql.files.ignoreCorruptFiles", "true")
              .getOrCreate())
     
-
+    # Definir log level para reduzir verbosidade
+    spark.sparkContext.setLogLevel("WARN")
+    
     silver_path = "/opt/airflow/datalake/silver"
     gold_path = "/opt/airflow/datalake/gold"
     
@@ -41,17 +43,25 @@ def run_gold_transformation():
         df = spark.read.parquet(silver_path)
         
         # Verificar se temos dados
-        count = df.count()
-        if count == 0:
+        num_records = df.count()
+        if num_records == 0:
             raise ValueError("Nenhum dado foi carregado do diretório silver")
-
-
+        
+        logger.info(f"Carregados {num_records} registros da camada silver")
+        logger.info("Schema dos dados:")
+        df.printSchema()
+        
+        # Mostrar amostra dos dados
+        logger.info("Amostra dos dados:")
+        df.show(5, truncate=False)
+        
+        
         # 1. Agregação por país, estado e cidade
         logger.info("Criando agregação por localização (país, estado, cidade)")
         location_agg = (df
                         .groupBy("country", "state", "city")
-                        .agg(count("*").alias("brewery_count"))
-                        .withColumn("created_at", current_timestamp()))
+                        .agg(F.count(F.lit(1)).alias("brewery_count"))
+                        .withColumn("created_at", F.current_timestamp()))
         
         # Mostrar resultado da agregação por localização
         logger.info("Resultado da agregação por localização:")
@@ -61,8 +71,8 @@ def run_gold_transformation():
         logger.info("Criando agregação por tipo de cervejaria")
         type_agg = (df
                    .groupBy("brewery_type")
-                   .agg(count("*").alias("brewery_count"))
-                   .withColumn("created_at", current_timestamp()))
+                   .agg(F.count(F.lit(1)).alias("brewery_count"))
+                   .withColumn("created_at", F.current_timestamp()))
         
         # Mostrar resultado da agregação por tipo
         logger.info("Resultado da agregação por tipo:")
@@ -72,8 +82,8 @@ def run_gold_transformation():
         logger.info("Criando agregação por tipo e localização combinados")
         combined_agg = (df
                        .groupBy("brewery_type", "country", "state", "city")
-                       .agg(count("*").alias("brewery_count"))
-                       .withColumn("created_at", current_timestamp()))
+                       .agg(F.count(F.lit(1)).alias("brewery_count"))
+                       .withColumn("created_at", F.current_timestamp()))
         
         # Mostrar resultado da agregação combinada
         logger.info("Resultado da agregação combinada:")

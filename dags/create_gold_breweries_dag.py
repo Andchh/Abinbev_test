@@ -21,17 +21,17 @@ with DAG(
     start = EmptyOperator(task_id='start')
     
     # Sensor para aguardar a conclusão da DAG da camada silver
-    wait_for_silver = ExternalTaskSensor(
-        task_id='wait_for_silver',
-        external_dag_id='create_silver_breweries',
-        external_task_id='end',  # Espera pela tarefa 'end' da DAG silver
-        timeout=600,  # Timeout de 10 minutos
-        poke_interval=60,  # Verifica a cada 1 minuto
-        mode='reschedule',  # Libera o worker durante a espera
-        allowed_states=['success'],  # Só prossegue se a DAG silver for bem-sucedida
-        failed_states=['failed', 'skipped', 'upstream_failed'],
-        execution_delta=timedelta(minutes=0)  # Se a DAG silver for executada na mesma hora
-    )
+    '''wait_for_silver = ExternalTaskSensor(
+                    task_id='wait_for_silver',
+                    external_dag_id='create_silver_breweries',
+                    external_task_id='end',  # Espera pela tarefa 'end' da DAG silver
+                    timeout=600,  # Timeout de 10 minutos
+                    poke_interval=60,  # Verifica a cada 1 minuto
+                    mode='reschedule',  # Libera o worker durante a espera
+                    allowed_states=['success'],  # Só prossegue se a DAG silver for bem-sucedida
+                    failed_states=['failed', 'skipped', 'upstream_failed'],
+                    execution_delta=timedelta(minutes=0)  # Se a DAG silver for executada na mesma hora
+                )'''
     
     # Job Spark para criar as agregações na camada gold
     spark_job = DockerOperator(
@@ -67,4 +67,4 @@ with DAG(
     end = EmptyOperator(task_id='end')
     
     # Definição do fluxo de tarefas
-    start >> wait_for_silver >> spark_job >> end
+    start >> spark_job >> end

@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.empty import EmptyOperator
 from datetime import datetime
 import requests
 import json
@@ -34,7 +35,7 @@ def fetch_and_save_raw_data(**context):
     print(f"Dados salvos em {file_path}")
 
 default_args = {
-    "start_date": datetime(2023, 1, 1),
+    "start_date": datetime(2025, 1, 1),
     "retries": 3,
     "email": ["seu_email@example.com"],
     "email_on_failure": True,
@@ -42,13 +43,19 @@ default_args = {
 }
 
 with DAG(
-    dag_id="create_bronze_brewery",
+    dag_id="create_bronze_breweries",
     schedule="@daily",
     default_args=default_args,
     catchup=False
 ) as dag:
     
+    start = EmptyOperator(task_id='start')
+
     fetch_raw_data = PythonOperator(
         task_id="fetch_and_save_raw_brewery_data",
         python_callable=fetch_and_save_raw_data
     )
+
+    end = EmptyOperator(task_id='end')
+    
+    start >> fetch_raw_data >> end

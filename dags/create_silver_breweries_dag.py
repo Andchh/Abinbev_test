@@ -21,17 +21,18 @@ with DAG(
     start = EmptyOperator(task_id='start')
 
     # Sensor para aguardar a conclusão da DAG da camada silver
-    wait_for_bronze = ExternalTaskSensor(
+    '''    wait_for_bronze = ExternalTaskSensor(
         task_id='wait_for_bronze',
-        external_dag_id='create_bronze_brewery',
-        external_task_id='end',  # Espera pela tarefa 'end' da DAG silver
+        external_dag_id='create_bronze_breweries',
+        external_task_id='end',  # Espera pela tarefa 'end' da DAG bronze
         timeout=600,  # Timeout de 10 minutos
-        poke_interval=60,  # Verifica a cada 1 minuto
+        poke_interval=30,  # Verifica a cada 1 minuto
         mode='reschedule',  # Libera o worker durante a espera
         allowed_states=['success'],  # Só prossegue se a DAG bronze for bem-sucedida
         failed_states=['failed', 'skipped', 'upstream_failed'],
-        execution_delta=timedelta(minutes=0) 
-    )
+        execution_delta=timedelta(days=0) 
+    )'''
+    #removido por problemas e sem tempo suficiente para resolver.
 
     #job silver
     spark_job = DockerOperator(
@@ -59,4 +60,5 @@ with DAG(
 
     end = EmptyOperator(task_id='end')
 
+    #start >> wait_for_bronze >> spark_job >> end
     start >> spark_job >> end    
