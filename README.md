@@ -27,27 +27,26 @@ Ele foi criado para o desafio técnico para a empresa AbInbev.
 
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
-- Crie uma pasta chamada brewer
 
 ## ⚙️ Configuração
 
 ### 1. Clone o repositório
 Crie uma pasta chamada brewer, execute o terminal dentro dela e clone o repositório com: 
 ```bash
-git clone https://github.com/Andchh/Abinbev_test.git
-cd abinbev_test
+git clone https://github.com/Andchh/brewer.git
+cd brewer
 ```
 Isso é importante para fins de compatibilidade e vai evitar erros por nome de volume.
 
 
 ### 2. Crie o arquivo `.env`
 
-Você pode copiar um modelo existente ou criar manualmente. Exemplo:
+Você pode copiar um modelo existente ou criar manualmente um arquivo de texto e nomeá-lo .env dentro da pasta brewer que você baixou. Exemplo:
 
 ```bash
 AIRFLOW_UID=50000
 ```
-
+Porém o projeto já terá um arquivo .env pré definido com esse valor, considerando uma máquina com sistema operacional do Windows.
 > Obs: `AIRFLOW_UID` pode ser obtido com `id -u` no Linux/macOS, ou definido como `50000` no Windows.
 
 ### 3. Suba os containers

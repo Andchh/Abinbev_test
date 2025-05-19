@@ -15,17 +15,23 @@ def fetch_and_save_raw_data(**context):
         response = requests.get(url, params={"per_page": 50, "page": page})
         data = response.json()
 
+        if response.status_code != 200:
+            print(f"Erro na requisição da página {page}: status {response.status_code}")
+            break
+
         if not data:
+            print("Nenhum dado retornado. Fim da paginação.")
             break
 
         all_data.extend(data)
+        print(f"Página {page} coletada com {len(data)} registros.")
         page += 1
 
     # Caminho onde os dados serão salvos
     output_dir = "/opt/airflow/datalake/bronze"
     os.makedirs(output_dir, exist_ok=True)
 
-    # Nome do arquivo com timestamp
+    # Nome do arquivo
     file_path = os.path.join(output_dir, f"breweries_raw.json")
 
     # Salvar o JSON bruto

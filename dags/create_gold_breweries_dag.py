@@ -36,7 +36,8 @@ with DAG(
     # Job Spark para criar as agregações na camada gold
     spark_job = DockerOperator(
         task_id='create_gold_breweries',
-        image='spark-air',
+        image='bitnami/spark:3.2.1',
+        user = '0',
         command='spark-submit --master local[*] --driver-memory 1g --executor-memory 1g /opt/airflow/spark/app/create_gold_breweries.py',
         docker_url='tcp://docker-proxy:2375',
         network_mode='brewer_default',

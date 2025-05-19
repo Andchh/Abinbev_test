@@ -1,64 +1,84 @@
-from airflow.models import DAG
-from airflow.operators.empty import EmptyOperator
-from airflow.providers.docker.operators.docker import DockerOperator
-from airflow.sensors.external_task import ExternalTaskSensor
-from datetime import datetime, timedelta
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, lower, trim, regexp_replace, current_timestamp
 import os
+import logging
 
-with DAG(
-    dag_id='create_silver_breweries',
-    start_date=datetime(2025, 1, 1),
-    schedule=None,
-    catchup=False,
-    tags=["spark", "silver", "breweries"],
-    default_args={
-        'retries': 2,
-        'retry_delay': timedelta(minutes=1),
-        'owner': 'airflow'
-    }
-) as dag:
-    
-    start = EmptyOperator(task_id='start')
+# Configuração de logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-    # Sensor para aguardar a conclusão da DAG da camada silver
-    '''    wait_for_bronze = ExternalTaskSensor(
-        task_id='wait_for_bronze',
-        external_dag_id='create_bronze_breweries',
-        external_task_id='end',  # Espera pela tarefa 'end' da DAG bronze
-        timeout=600,  # Timeout de 10 minutos
-        poke_interval=30,  # Verifica a cada 1 minuto
-        mode='reschedule',  # Libera o worker durante a espera
-        allowed_states=['success'],  # Só prossegue se a DAG bronze for bem-sucedida
-        failed_states=['failed', 'skipped', 'upstream_failed'],
-        execution_delta=timedelta(days=0) 
-    )'''
-    #removido por problemas e sem tempo suficiente para resolver.
+def run_silver_transformation():
 
-    #job silver
-    spark_job = DockerOperator(
-        task_id='create_silver_breweries',
-        image='spark-air',
-        command='spark-submit --master local[*] --driver-memory 1g --executor-memory 1g /opt/airflow/spark/app/create_silver_breweries.py',
-        docker_url='tcp://docker-proxy:2375',
-        network_mode='brewer_default',
-        mounts=[
-            {
-                "source": "brewer_spark-app-scripts",
-                "target": "/opt/airflow/spark/app",
-                "type": "volume"
-            },
-            {
-                "source": "brewer_datalake-volume",
-                "target": "/opt/airflow/datalake",
-                "type": "volume"
-            }
-        ],
-        auto_remove="success",
-        tmp_dir="/tmp",
-        mount_tmp_dir=False
-    )
+    # Configuração do Spark em modo local forçado para evitar problemas de cluster
+    spark = (SparkSession.builder
+             .appName("create_silver_breweries")
+             .master("local[*]")  
+             .config("spark.driver.memory", "1g")  
+             .config("spark.executor.memory", "1g")
+             .config("spark.sql.files.ignoreCorruptFiles", "true")
+             .config("spark.driver.maxResultSize", "500m") 
+             .config("spark.rpc.message.maxSize", "128")  
+             .getOrCreate())
 
-    end = EmptyOperator(task_id='end')
+    bronze_path = "/opt/airflow/datalake/bronze"
+    silver_path = "/opt/airflow/datalake/silver"
 
-    #start >> wait_for_bronze >> spark_job >> end
-    start >> spark_job >> end    
+    try:
+        # Verificar se o diretório bronze existe
+        if not os.path.exists(bronze_path):
+            raise FileNotFoundError(f"O diretório bronze não existe: {bronze_path}")
+        
+        # Criar diretório silver se não existir
+        os.makedirs(silver_path, exist_ok=True)
+        
+        # Leitura dos dados da camada bronze
+        logger.info(f"Lendo dados da camada bronze: {bronze_path}")
+        df = (spark.read
+              .option("multiline", "true")
+              .option("mode", "PERMISSIVE") 
+              .option("columnNameOfCorruptRecord", "_corrupt_record")
+              .json(bronze_path))
+        
+        # Verificar se temos dados
+        count = df.count()
+        if count == 0:
+            raise ValueError("Nenhum dado foi carregado do diretório bronze")
+        
+        # Aplicar normalizações
+        logger.info("Aplicando normalizações aos dados")
+        
+        # Normalização de colunas de localização
+        for column in ["country", "state", "city"]:
+            logger.info(f"Normalizando coluna: {column}")
+            df = df.withColumn(column, 
+                             regexp_replace(lower(trim(col(column))), r"[^a-z0-9]+", "_"))
+        
+        # Adicionar timestamp de processamento
+        df = df.withColumn("processed_at", current_timestamp())
+        
+        # Escrita particionada por pais, estado e cidade (localização)
+        logger.info(f"Salvando dados normalizados na camada silver: {silver_path}")
+        df.write.mode("overwrite").partitionBy("country", "state", "city").parquet(silver_path)
+        
+        logger.info("Escrita concluida.")
+        
+    except FileNotFoundError as e:
+        logger.error(f"Erro de arquivo não encontrado: {str(e)}")
+        raise
+    except ValueError as e:
+        logger.error(f"Erro de valor: {str(e)}")
+        raise
+    except Exception as e:
+        logger.error(f"Erro não esperado durante o processamento: {str(e)}")
+        raise
+    finally:
+        logger.info("Encerrando sessão Spark")
+        spark.stop()
+
+if __name__ == "__main__":
+    try:
+        run_silver_transformation()
+    except Exception as e:
+        logger.error(f"Falha na execução: {str(e)}")
+        # Retorna código de erro para o Airflow saber que falhou
+        exit(1)
