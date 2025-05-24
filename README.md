@@ -4,6 +4,10 @@ Este projeto utiliza o Apache Airflow em um ambiente Dockerizado para orquestra�
 Este projeto utiliza Apache Airflow  e Spark em um ambiente Docker para orquestração de pipeline de dados.
 Ele foi criado para o desafio técnico para a empresa AbInbev.
 
+O airflow foi escolhido por ser uma ferramenta conhecida tanto na área de individual como em grandes empresas, facilitando uma simulação para um mundo corporativo.
+O docker permite que o projeto que foi criado e configurado de um jeito específico possa rodar em qualquer máquina com o suporte para o mesmo, facilitando o compartilhamento de código. Também é preciso considerar que sua rede interna pode ser configurada para simular a comunicação entre componentes geralmente usados para soluções de dados. Nesse projeto, por exemplo, o airflow poderia mandar o comando para o spark via rede local docker.
+Python e Spark foram escolhidos como linguagens dessa solução por serem mais utilizadas no ramo de engenharia de dados. O python é usado para comunicação com a API, para mostrar sua eficiência como linguagem de script e o Spark é usado para tratamento de dados. No docker compose desse projeto também é possível criar diferentes workers para o spark, simulando uma rede com vários computadores trabalhando em paralelo para computar a solução. 
+
 ## 📁 Estrutura do Projeto
 
 ```
